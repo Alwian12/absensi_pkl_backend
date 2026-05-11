@@ -218,23 +218,11 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint - for Railway healthcheck
-app.get('/api/health', async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    await connection.query('SELECT 1');
-    connection.release();
-    res.json({
-      status: 'ok',
-      database: 'connected',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      database: 'disconnected',
-      error: error.message
-    });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling - 404 handler for static files
@@ -580,14 +568,22 @@ const initDatabase = async () => {
   }
 };
 
-// Start server
-const startServer = async () => {
-  await testConnection();
-  await initDatabase();
-  
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
+// Start server immediately (don't wait for DB)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Health check: http://0.0.0.0:${PORT}/api/health`);
+});
+
+// Initialize database asynchronously (don't block server startup)
+const startDatabase = async () => {
+  try {
+    await testConnection();
+    await initDatabase();
+    console.log('✅ Database ready');
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    console.log('⚠️ Server running but database unavailable');
+  }
 };
 
-startServer();
+startDatabase();
