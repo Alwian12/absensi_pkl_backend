@@ -207,6 +207,36 @@ const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 console.log('[SWAGGER] API Documentation available at http://localhost:3001/api-docs');
 
+// Root endpoint - MUST be before error handlers
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Absensi PKL API',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: ['/api/auth', '/api/admin', '/api/health']
+  });
+});
+
+// Health check endpoint - for Railway healthcheck
+app.get('/api/health', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    await connection.query('SELECT 1');
+    connection.release();
+    res.json({
+      status: 'ok',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: error.message
+    });
+  }
+});
+
 // Error handling - 404 handler for static files
 app.use((req, res, next) => {
   if (!res.headersSent) {
@@ -233,37 +263,6 @@ app.use((err, req, res, next) => {
     message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
-});
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Absensi PKL API',
-    status: 'running',
-    timestamp: new Date().toISOString(),
-    endpoints: ['/api/auth', '/api/admin', '/api/health']
-  });
-});
-
-// Health check endpoint
-app.get('/api/health', async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    await connection.query('SELECT 1');
-    connection.release();
-    res.json({
-      status: 'ok',
-      database: 'connected',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      database: 'disconnected',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
 });
 
 // Initialize database
