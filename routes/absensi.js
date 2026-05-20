@@ -2,7 +2,7 @@ const express = require('express');
 const { pool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const upload = require('../config/upload');
-const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
 
@@ -156,13 +156,10 @@ router.post('/checkin', verifyToken, upload.uploadAttendancePhoto.single('foto')
     // Check time
     const now = new Date();
     const currentTime = now.toTimeString().slice(0, 8);
-    const startTime = '07:00:00';
     const lateTime = '09:00:00';
     
     let statusCheckIn;
-    if (currentTime < startTime) {
-      statusCheckIn = 'belum_waktu';
-    } else if (currentTime <= lateTime) {
+    if (currentTime <= lateTime) {
       statusCheckIn = 'tepat_waktu';
     } else {
       statusCheckIn = 'terlambat';
@@ -173,13 +170,13 @@ router.post('/checkin', verifyToken, upload.uploadAttendancePhoto.single('foto')
     // Insert or update with foto
     if (existingRows.length > 0) {
       await pool.query(
-        'UPDATE absensi SET check_in = ?, status_check_in = ?, foto_check_in = ? WHERE id = ?',
-        [checkInTime, statusCheckIn, fotoPath, existingRows[0].id]
+        'UPDATE absensi SET check_in = ?, status_check_in = ?, lat_check_in = ?, lng_check_in = ?, foto_check_in = ? WHERE id = ?',
+        [checkInTime, statusCheckIn, lat, lng, fotoPath, existingRows[0].id]
       );
     } else {
       await pool.query(
-        'INSERT INTO absensi (user_id, tanggal, check_in, status_check_in, status_check_out, foto_check_in) VALUES (?, ?, ?, ?, NULL, ?)',
-        [userId, today, checkInTime, statusCheckIn, fotoPath]
+        'INSERT INTO absensi (user_id, tanggal, check_in, lat_check_in, lng_check_in, status_check_in, status_check_out, foto_check_in) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)',
+        [userId, today, checkInTime, lat, lng, statusCheckIn, fotoPath]
       );
     }
     
@@ -275,7 +272,7 @@ router.post('/checkout', verifyToken, upload.uploadAttendancePhoto.single('foto'
     const now = new Date();
     const currentTime = now.toTimeString().slice(0, 8);
     const dayOfWeek = now.getDay(); // 0=Sun, 5=Fri
-    const endTime = dayOfWeek === 5 ? '15:00:00' : '16:00:00';
+    const endTime = dayOfWeek === 5 ? '15:00:00' : '16:30:00';
     
     // Check if trying to check out before end time without izin
     if (currentTime < endTime) {
@@ -294,7 +291,7 @@ router.post('/checkout', verifyToken, upload.uploadAttendancePhoto.single('foto'
         
         if (earlyLeaveIzin.length === 0) {
           return res.status(403).json({
-            message: `Anda tidak bisa check-out sebelum jam ${dayOfWeek === 5 ? '15:00' : '16:00'} tanpa izin pulang cepat. Silakan ajukan izin terlebih dahulu.`,
+            message: `Anda tidak bisa check-out sebelum jam ${dayOfWeek === 5 ? '15:00' : '16:30'} tanpa izin pulang cepat. Silakan ajukan izin terlebih dahulu.`,
             required: 'izin_pulang_cepat',
             blocked: true
           });
@@ -313,8 +310,8 @@ router.post('/checkout', verifyToken, upload.uploadAttendancePhoto.single('foto'
     
     // Update record
     await pool.query(
-      'UPDATE absensi SET check_out = ?, status_check_out = ?, foto_check_out = ? WHERE id = ?',
-      [checkOutTime, statusCheckOut, fotoPath, record.id]
+      'UPDATE absensi SET check_out = ?, status_check_out = ?, lat_check_out = ?, lng_check_out = ?, foto_check_out = ? WHERE id = ?',
+      [checkOutTime, statusCheckOut, lat, lng, fotoPath, record.id]
     );
     
     res.json({

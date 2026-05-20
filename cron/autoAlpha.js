@@ -19,12 +19,12 @@ cron.schedule('0 18 * * *', async () => {
     const today = new Date().toISOString().split('T')[0];
     console.log(`[CRON] Checking date: ${today}`);
 
-    // Get semua user PKL
+    // Get semua pegawai aktif
     const [users] = await pool.query(
-      'SELECT id, nama FROM users WHERE role = "pkl"'
+      'SELECT id, nama FROM users_pkl WHERE status = "aktif"'
     );
 
-    console.log(`[CRON] Found ${users.length} PKL users`);
+    console.log(`[CRON] Found ${users.length} active users`);
 
     let alphaCount = 0;
     let alreadyMarkedCount = 0;
@@ -39,8 +39,8 @@ cron.schedule('0 18 * * *', async () => {
       // Jika tidak ada record → Insert alpha
       if (absensi.length === 0) {
         await pool.query(
-          `INSERT INTO absensi (user_id, tanggal, status_check_in, check_in, check_out, created_at, updated_at)
-           VALUES (?, ?, 'tidak_hadir', NULL, NULL, NOW(), NOW())`,
+          `INSERT INTO absensi (user_id, tanggal, status_check_in, check_in, check_out, created_at)
+           VALUES (?, ?, 'tidak_hadir', NULL, NULL, NOW())`,
           [user.id, today]
         );
         

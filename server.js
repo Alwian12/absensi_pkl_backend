@@ -8,6 +8,10 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 require('dotenv').config();
 
+if (!process.env.JWT_EXPIRES_IN) {
+  process.env.JWT_EXPIRES_IN = '7d';
+}
+
 // Fallback JWT_SECRET if not set in .env
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'absensi_pkl_secure_key_2024_random_string_for_jwt_token_generation';
@@ -16,14 +20,8 @@ if (!process.env.JWT_SECRET) {
 
 const { testConnection, pool } = require('./config/database');
 
-// Import auto-alpha cron job
-require('./cron/autoAlpha');
-
-// Import auto-backup cron job
-require('./cron/autoBackup');
-
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // CORS configuration - MUST be first, before any other middleware
 app.use(cors({
@@ -176,9 +174,9 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Absensi PKL API',
+      title: 'Absensi Honor Kantor API',
       version: '1.0.0',
-      description: 'API Documentation for Absensi PKL System',
+      description: 'API Documentation for Absensi Honor Kantor System',
       contact: {
         name: 'API Support',
         email: 'support@absensi-pkl.com'
@@ -186,7 +184,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
         description: 'Development server'
       }
     ],
@@ -205,12 +203,12 @@ const swaggerOptions = {
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-console.log('[SWAGGER] API Documentation available at http://localhost:3001/api-docs');
+console.log('[SWAGGER] API Documentation available at http://localhost:3000/api-docs');
 
 // Root endpoint - MUST be before error handlers
 app.get('/', (req, res) => {
   res.json({
-    message: 'Absensi PKL API',
+    message: 'Absensi Honor Kantor API',
     status: 'running',
     timestamp: new Date().toISOString(),
     endpoints: ['/api/auth', '/api/admin', '/api/health']
@@ -537,7 +535,7 @@ const initDatabase = async () => {
     if (unitRows[0].count === 0) {
       await connection.query(`
         INSERT INTO unit_kantor (nama_unit, alamat, latitude, longitude, radius_meter) 
-        VALUES ('Dinas Kominfo', 'Jl. Contoh No. 123, Kota', -6.2088, 106.8456, 100)
+        VALUES ('Kantor', 'Jl. Contoh No. 123, Kota', -6.2088, 106.8456, 100)
       `);
     }
     
@@ -557,7 +555,7 @@ const initDatabase = async () => {
       const hashedPassword = await bcrypt.hash('pkl123', 10);
       await connection.query(`
         INSERT INTO users_pkl (nama, email, password, asal_sekolah, jurusan, tanggal_mulai, tanggal_selesai, unit_id) 
-        VALUES ('Peserta Demo', 'pkl@demo.com', ?, 'SMK Demo', 'RPL', '2024-01-01', '2024-06-30', 1)
+        VALUES ('Pegawai Honor Demo', 'honor@demo.com', ?, 'Kantor', 'Staf Honor', '2024-01-01', '2024-12-31', 1)
       `, [hashedPassword]);
     }
     
@@ -567,12 +565,6 @@ const initDatabase = async () => {
     console.error('❌ Database initialization failed:', error);
   }
 };
-
-// Start server immediately (don't wait for DB)
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://0.0.0.0:${PORT}/api/health`);
-});
 
 // Initialize database asynchronously (don't block server startup)
 const startDatabase = async () => {
@@ -586,4 +578,20 @@ const startDatabase = async () => {
   }
 };
 
-startDatabase();
+const startServer = () => {
+  require('./cron/autoAlpha');
+  require('./cron/autoBackup');
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Health check: http://0.0.0.0:${PORT}/api/health`);
+  });
+
+  startDatabase();
+};
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

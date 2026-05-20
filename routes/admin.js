@@ -427,8 +427,8 @@ router.put('/absensi/:id', verifyAdmin, async (req, res) => {
       params.push(check_out);
       
       // AUTO-CALCULATE status_check_out berdasarkan waktu
-      // Rules: >= 16:00:00 = tepat_waktu, < 16:00:00 = pulang_cepat
-      const endTime = '16:00:00';
+      // Rules: >= 16:30:00 = tepat_waktu, < 16:30:00 = pulang_cepat
+      const endTime = '16:30:00';
       let calculatedStatusOut;
       if (check_out >= endTime) {
         calculatedStatusOut = 'tepat_waktu';
@@ -960,7 +960,7 @@ router.get('/admin/all', verifyAdmin, async (req, res) => {
               a.is_active, a.created_at, a.ttd,
               u.nama as unit_nama
        FROM admins a
-       LEFT JOIN unit_kerja u ON a.unit_id = u.id
+       LEFT JOIN unit_kantor u ON a.unit_id = u.id
        ORDER BY a.created_at DESC`
     );
     res.json(rows);
@@ -1224,7 +1224,7 @@ router.get('/all', verifyAdmin, async (req, res) => {
     const [rows] = await pool.query(`
       SELECT a.*, u.nama as unit_nama 
       FROM admins a 
-      LEFT JOIN unit_kerja u ON a.unit_id = u.id 
+      LEFT JOIN unit_kantor u ON a.unit_id = u.id 
       ORDER BY a.id DESC
     `);
     res.json(rows);
@@ -1238,7 +1238,12 @@ router.get('/all', verifyAdmin, async (req, res) => {
 // Get all jabatan (master data)
 router.get('/jabatan/all', verifyAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM jabatan ORDER BY level');
+    const [rows] = await pool.query(`
+      SELECT DISTINCT jabatan as nama, 1 as level
+      FROM admins
+      WHERE jabatan IS NOT NULL AND jabatan != ''
+      ORDER BY jabatan
+    `);
     res.json(rows);
   } catch (error) {
     console.error('Get jabatan error:', error.message);
@@ -1247,10 +1252,10 @@ router.get('/jabatan/all', verifyAdmin, async (req, res) => {
   }
 });
 
-// Get all unit_kerja
+// Get all office units
 router.get('/unit/all', verifyAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM unit_kerja ORDER BY nama');
+    const [rows] = await pool.query('SELECT id, nama_unit as nama, alamat, latitude, longitude, radius_meter FROM unit_kantor ORDER BY nama_unit');
     res.json(rows);
   } catch (error) {
     console.error('Get unit error:', error.message);

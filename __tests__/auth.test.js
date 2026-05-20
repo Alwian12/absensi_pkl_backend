@@ -1,5 +1,10 @@
 const request = require('supertest');
 const app = require('../server');
+const { pool } = require('../config/database');
+
+afterAll(async () => {
+  await pool.end();
+});
 
 describe('Auth API Tests', () => {
   describe('POST /api/auth/login', () => {

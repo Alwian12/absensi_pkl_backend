@@ -15,7 +15,7 @@ router.use(sanitizeInput);
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login PKL user
+ *     summary: Login user
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -50,7 +50,7 @@ router.use(sanitizeInput);
  *       401:
  *         description: Invalid credentials
  */
-// Login PKL
+// Login user
 router.post('/login', validateRequired(['nama', 'password']), async (req, res) => {
   try {
     const { nama, password } = req.body;
@@ -246,6 +246,10 @@ router.post('/forgot-password', async (req, res) => {
     
     if (!email) {
       return res.status(400).json({ message: 'Email wajib diisi' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: 'Format email tidak valid' });
     }
     
     // Check if user exists
